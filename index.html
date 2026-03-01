@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indian Stocks - BOS Detector</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📈 Indian Stocks Pattern Detector</h1>
+            <p class="subtitle">Detect BOS and CHOCH patterns on the latest candle across multiple timeframes (Daily/Weekly/Monthly)</p>
+        </header>
+
+        <div class="info-box">
+            <div class="pattern-selector">
+                <label style="font-weight: 600; margin-right: 15px;">Select Pattern:</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="pattern" value="bos" checked>
+                        <span>BOS (Break of Structure)</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="pattern" value="choch">
+                        <span>CHOCH (Change of Character)</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div id="bosInfo" class="pattern-info">
+                <h3>What is BOS (Break of Structure)?</h3>
+                <p><strong>Bullish BOS:</strong> When the candle <u>crosses above</u> AND <u>closes above</u> a previous swing high, confirming strong upward momentum and trend continuation.</p>
+                <p><strong>Bearish BOS:</strong> When the candle <u>crosses below</u> AND <u>closes below</u> a previous swing low, confirming strong downward momentum and trend continuation.</p>
+                <p><em>BOS indicates the trend is continuing in the same direction.</em></p>
+            </div>
+
+            <div id="chochInfo" class="pattern-info hidden">
+                <h3>What is CHOCH (Change of Character)?</h3>
+                <p><strong>Bullish CHOCH:</strong> In a downtrend, when the candle <u>crosses above</u> AND <u>closes above</u> a previous swing high, signaling potential trend reversal to uptrend.</p>
+                <p><strong>Bearish CHOCH:</strong> In an uptrend, when the candle <u>crosses below</u> AND <u>closes below</u> a previous swing low, signaling potential trend reversal to downtrend.</p>
+                <p><em>CHOCH indicates the market character is changing and potential trend reversal.</em></p>
+            </div>
+
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;"><em>Note: Patterns require price to CROSS the level AND CLOSE beyond it for stronger confirmation. Works on all timeframes (Daily, Weekly, Monthly).</em></p>
+        </div>
+
+        <div class="controls">
+            <div class="timeframe-selector">
+                <label for="timeframe" style="font-weight: 600; margin-right: 10px;">Timeframe:</label>
+                <select id="timeframe" class="timeframe-select">
+                    <option value="1d" selected>Daily (1D)</option>
+                    <option value="1wk">Weekly (1W)</option>
+                    <option value="1mo">Monthly (1M)</option>
+                </select>
+            </div>
+            
+            <button id="scanBtn" class="scan-btn">
+                <span id="scanBtnText">🔍 Scan Stocks</span>
+                <span id="loadingSpinner" class="spinner hidden"></span>
+            </button>
+            <div id="scanInfo" class="scan-info hidden">
+                <span id="scanProgress"></span>
+            </div>
+        </div>
+
+        <div id="results" class="results hidden">
+            <div class="results-header">
+                <h2>Stocks Found</h2>
+                <div class="stats">
+                    <span id="bosCount">0 stocks</span>
+                    <span class="separator">•</span>
+                    <span id="scanTime"></span>
+                </div>
+            </div>
+
+            <div class="filter-tabs">
+                <button class="tab-btn active" data-filter="all">All (<span id="countAll">0</span>)</button>
+                <button class="tab-btn" data-filter="bullish">Bullish (<span id="countBullish">0</span>)</button>
+                <button class="tab-btn" data-filter="bearish">Bearish (<span id="countBearish">0</span>)</button>
+            </div>
+
+            <div id="stocksList" class="stocks-list"></div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+            <div class="empty-icon">📊</div>
+            <h3>Ready to scan</h3>
+            <p>Select timeframe and pattern type, then click scan to detect stocks with latest patterns.</p>
+        </div>
+
+        <div id="noResults" class="empty-state hidden">
+            <div class="empty-icon">🔍</div>
+            <h3>No patterns detected</h3>
+            <p>No stocks showed the selected pattern on the latest candle. Try a different timeframe or pattern.</p>
+        </div>
+    </div>
+
+    <div id="notification" class="notification hidden">
+        <span id="notificationText"></span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
