@@ -44,6 +44,11 @@ The application has been simplified to focus on **timeframe-based pattern detect
 - For Weekly: Scans this week's (or most recent) weekly candle
 - For Monthly: Scans this month's (or most recent) monthly candle
 
+**Coverage:**
+- Scans all 100 Nifty 100 Index stocks
+- Includes Nifty 50 + Nifty Next 50
+- 85% of NSE market cap
+
 **Result:**
 - Each stock appears at most once
 - Only shows stocks with patterns on the latest candle

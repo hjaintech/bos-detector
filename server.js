@@ -9,8 +9,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('.'));
 
-// Nifty 50 Index stocks (all 50 stocks)
+// Nifty 100 Index stocks (Nifty 50 + Nifty Next 50)
 const INDIAN_STOCKS = [
+    // ===== NIFTY 50 STOCKS =====
+    
     // Top weighted stocks
     'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS',
     'HINDUNILVR.NS', 'ITC.NS', 'SBIN.NS', 'BHARTIARTL.NS', 'KOTAKBANK.NS',
@@ -42,8 +44,110 @@ const INDIAN_STOCKS = [
     'BAJAJFINSV.NS', 'SBILIFE.NS', 'HDFCLIFE.NS',
     
     // Telecom & Services
-    'INDUSINDBK.NS', 'GRASIM.NS'
+    'INDUSINDBK.NS', 'GRASIM.NS',
+    
+    // ===== NIFTY NEXT 50 STOCKS (Additional 50) =====
+    
+    // Financial Services & Banking
+    'PNB.NS', 'BANKBARODA.NS', 'ICICIPRULI.NS', 'MUTHOOTFIN.NS', 'CHOLAFIN.NS',
+    'BANDHANBNK.NS', 'SBICARD.NS', 'ICICIGI.NS',
+    
+    // FMCG & Consumer
+    'MARICO.NS', 'DABUR.NS', 'GODREJCP.NS', 'PIDILITIND.NS', 'COLPAL.NS',
+    'HAVELLS.NS', 'VOLTAS.NS', 'VBL.NS', 'DMART.NS',
+    
+    // Energy & Utilities
+    'TATAPOWER.NS', 'TORNTPOWER.NS', 'ADANIGREEN.NS', 'SIEMENS.NS', 'GAIL.NS',
+    'PETRONET.NS', 'OIL.NS', 'HINDPETRO.NS',
+    
+    // Auto & Manufacturing
+    'BOSCHLTD.NS', 'TVSMOTOR.NS', 'ESCORTS.NS', 'MOTHERSON.NS',
+    
+    // Cement & Construction
+    'AMBUJACEM.NS', 'ACC.NS', 'SHREECEM.NS',
+    
+    // IT & Technology
+    'PERSISTENT.NS', 'COFORGE.NS', 'MPHASIS.NS',
+    
+    // Metals & Materials
+    'JINDALSTEL.NS', 'SAIL.NS', 'NMDC.NS',
+    
+    // Pharma & Healthcare
+    'BIOCON.NS', 'TORNTPHARM.NS', 'ALKEM.NS', 'LUPIN.NS', 'AUROPHARMA.NS',
+    
+    // Industrial & Conglomerates
+    'ABB.NS', 'CUMMINSIND.NS', 'BERGEPAINT.NS',
+    
+    // Real Estate & Media
+    'DLF.NS', 'GODREJPROP.NS', 'PAGEIND.NS', 'ZEEL.NS'
 ];
+
+// Convert Yahoo Finance date to actual trading day (Monday for weekly, last weekday for monthly)
+function convertToTradingDay(dateStr, interval) {
+    const date = new Date(dateStr + 'T00:00:00Z');
+    
+    // For weekly candles, NSE/BSE week starts on Monday
+    // Yahoo typically gives week-ending date (often Monday or Sunday)
+    // We want to show Monday (week start date)
+    if (interval === '1wk') {
+        const dayOfWeek = date.getUTCDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+        
+        // Convert to Monday (week start)
+        if (dayOfWeek === 0) { // Sunday -> go back 6 days to Monday
+            date.setUTCDate(date.getUTCDate() - 6);
+        } else if (dayOfWeek === 2) { // Tuesday -> go back 1 day to Monday
+            date.setUTCDate(date.getUTCDate() - 1);
+        } else if (dayOfWeek === 3) { // Wednesday -> go back 2 days to Monday
+            date.setUTCDate(date.getUTCDate() - 2);
+        } else if (dayOfWeek === 4) { // Thursday -> go back 3 days to Monday
+            date.setUTCDate(date.getUTCDate() - 3);
+        } else if (dayOfWeek === 5) { // Friday -> go back 4 days to Monday
+            date.setUTCDate(date.getUTCDate() - 4);
+        } else if (dayOfWeek === 6) { // Saturday -> go back 5 days to Monday
+            date.setUTCDate(date.getUTCDate() - 5);
+        }
+        // If already Monday (1), keep it
+        
+        // Ensure we don't go into the future
+        const now = new Date();
+        if (date > now) {
+            // Move back to most recent Monday
+            const today = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+            const todayDay = today.getUTCDay();
+            // Days to go back to reach Monday
+            const daysBackToMonday = todayDay === 0 ? 6 : todayDay - 1;
+            date.setTime(today.getTime() - (daysBackToMonday * 24 * 60 * 60 * 1000));
+        }
+        
+        return date.toISOString().split('T')[0];
+    }
+    
+    // For monthly candles, use the last trading day of the month
+    if (interval === '1mo') {
+        const year = date.getUTCFullYear();
+        const month = date.getUTCMonth();
+        const lastDay = new Date(Date.UTC(year, month + 1, 0));
+        
+        // Adjust for weekends
+        let dayOfWeek = lastDay.getUTCDay();
+        while (dayOfWeek === 0 || dayOfWeek === 6) {
+            lastDay.setUTCDate(lastDay.getUTCDate() - 1);
+            dayOfWeek = lastDay.getUTCDay();
+        }
+        
+        return lastDay.toISOString().split('T')[0];
+    }
+    
+    // For daily, ensure it's a weekday
+    const dayOfWeek = date.getUTCDay();
+    if (dayOfWeek === 0) { // Sunday -> previous Friday
+        date.setUTCDate(date.getUTCDate() - 2);
+    } else if (dayOfWeek === 6) { // Saturday -> previous Friday
+        date.setUTCDate(date.getUTCDate() - 1);
+    }
+    
+    return date.toISOString().split('T')[0];
+}
 
 // Fetch historical data for a stock
 async function fetchHistoricalData(symbol, days = 60, interval = '1d') {
@@ -65,14 +169,20 @@ async function fetchHistoricalData(symbol, days = 60, interval = '1d') {
         const quote = result.indicators.quote[0];
         const meta = result.meta;
         
-        const bars = timestamps.map((timestamp, index) => ({
-            date: new Date(timestamp * 1000).toISOString().split('T')[0],
-            open: quote.open[index],
-            high: quote.high[index],
-            low: quote.low[index],
-            close: quote.close[index],
-            volume: quote.volume[index]
-        })).filter(bar => bar.open && bar.high && bar.low && bar.close);
+        const bars = timestamps.map((timestamp, index) => {
+            const rawDate = new Date(timestamp * 1000).toISOString().split('T')[0];
+            const tradingDate = convertToTradingDay(rawDate, interval);
+            
+            return {
+                date: tradingDate,
+                rawDate: rawDate,
+                open: quote.open[index],
+                high: quote.high[index],
+                low: quote.low[index],
+                close: quote.close[index],
+                volume: quote.volume[index]
+            };
+        }).filter(bar => bar.open && bar.high && bar.low && bar.close);
         
         return {
             symbol: meta.symbol,
@@ -91,13 +201,20 @@ function findSwingPoints(bars, lookback = 5) {
     const swingHighs = [];
     const swingLows = [];
     
-    for (let i = lookback; i < bars.length - lookback; i++) {
+    // Adjust lookback for fewer bars available
+    const effectiveLookback = Math.min(lookback, Math.floor((bars.length - 1) / 3));
+    
+    if (effectiveLookback < 2) {
+        return { swingHighs, swingLows };
+    }
+    
+    for (let i = effectiveLookback; i < bars.length - effectiveLookback; i++) {
         const currentHigh = bars[i].high;
         const currentLow = bars[i].low;
         
         // Check if it's a swing high
         let isSwingHigh = true;
-        for (let j = 1; j <= lookback; j++) {
+        for (let j = 1; j <= effectiveLookback; j++) {
             if (bars[i - j].high >= currentHigh || bars[i + j].high >= currentHigh) {
                 isSwingHigh = false;
                 break;
@@ -109,7 +226,7 @@ function findSwingPoints(bars, lookback = 5) {
         
         // Check if it's a swing low
         let isSwingLow = true;
-        for (let j = 1; j <= lookback; j++) {
+        for (let j = 1; j <= effectiveLookback; j++) {
             if (bars[i - j].low <= currentLow || bars[i + j].low <= currentLow) {
                 isSwingLow = false;
                 break;
@@ -123,56 +240,100 @@ function findSwingPoints(bars, lookback = 5) {
     return { swingHighs, swingLows };
 }
 
-// Detect BOS at a specific bar index
+// Find the BOS break date - the first bar where close crossed from one side to the other
+function findBOSBreak(bars, structurePrice, type, structureIndex) {
+    // Scan forward from structure point to find the first break
+    for (let i = structureIndex + 1; i < bars.length; i++) {
+        const prevBar = bars[i - 1];
+        const currentBar = bars[i];
+        
+        if (type === 'bullish') {
+            // Previous close was at or below, current close is above
+            if (prevBar.close <= structurePrice && currentBar.close > structurePrice) {
+                // Also verify it crossed (high went above)
+                if (currentBar.high > structurePrice) {
+                    return {
+                        breakIndex: i,
+                        breakDate: currentBar.date,
+                        breakPrice: currentBar.close,
+                        change: currentBar.close - prevBar.close,
+                        changePercent: ((currentBar.close - prevBar.close) / prevBar.close) * 100
+                    };
+                }
+            }
+        } else if (type === 'bearish') {
+            // Previous close was at or above, current close is below
+            if (prevBar.close >= structurePrice && currentBar.close < structurePrice) {
+                // Also verify it crossed (low went below)
+                if (currentBar.low < structurePrice) {
+                    return {
+                        breakIndex: i,
+                        breakDate: currentBar.date,
+                        breakPrice: currentBar.close,
+                        change: currentBar.close - prevBar.close,
+                        changePercent: ((currentBar.close - prevBar.close) / prevBar.close) * 100
+                    };
+                }
+            }
+        }
+    }
+    
+    return null;
+}
+
+// Detect BOS at a specific bar index (checks if BOS exists and finds break details)
 function detectBOSAtIndex(bars, barIndex, swingHighs, swingLows) {
     if (barIndex < 1 || barIndex >= bars.length) {
         return null;
     }
     
-    const prevBar = bars[barIndex - 1];
     const currentBar = bars[barIndex];
     
-    // Check for bullish BOS (must CROSS above AND CLOSE above)
+    // Check for bullish BOS - current bar must be above structure
     const relevantSwingHighs = swingHighs.filter(sh => sh.index < barIndex);
-    if (relevantSwingHighs.length > 0) {
+    if (relevantSwingHighs.length > 1) {
         const lastSwingHigh = relevantSwingHighs[relevantSwingHighs.length - 1];
         
-        // Require: high crossed above structure AND close is above structure
-        if (currentBar.high > lastSwingHigh.price && currentBar.close > lastSwingHigh.price) {
-            const previousSwingHighs = relevantSwingHighs.slice(0, -1);
-            if (previousSwingHighs.length > 0) {
+        // Check if current bar is above structure
+        if (currentBar.close > lastSwingHigh.price) {
+            // Find the actual break date
+            const breakInfo = findBOSBreak(bars, lastSwingHigh.price, 'bullish', lastSwingHigh.index);
+            
+            if (breakInfo && breakInfo.breakIndex <= barIndex) {
                 return {
                     type: 'Bullish',
-                    date: currentBar.date,
-                    breakPrice: currentBar.close,
+                    date: breakInfo.breakDate,
+                    breakPrice: breakInfo.breakPrice,
                     structurePrice: lastSwingHigh.price,
                     structureDate: lastSwingHigh.date,
                     close: currentBar.close,
-                    change: currentBar.close - prevBar.close,
-                    changePercent: ((currentBar.close - prevBar.close) / prevBar.close) * 100
+                    change: breakInfo.change,
+                    changePercent: breakInfo.changePercent
                 };
             }
         }
     }
     
-    // Check for bearish BOS (must CROSS below AND CLOSE below)
+    // Check for bearish BOS - current bar must be below structure
     const relevantSwingLows = swingLows.filter(sl => sl.index < barIndex);
-    if (relevantSwingLows.length > 0) {
+    if (relevantSwingLows.length > 1) {
         const lastSwingLow = relevantSwingLows[relevantSwingLows.length - 1];
         
-        // Require: low crossed below structure AND close is below structure
-        if (currentBar.low < lastSwingLow.price && currentBar.close < lastSwingLow.price) {
-            const previousSwingLows = relevantSwingLows.slice(0, -1);
-            if (previousSwingLows.length > 0) {
+        // Check if current bar is below structure
+        if (currentBar.close < lastSwingLow.price) {
+            // Find the actual break date
+            const breakInfo = findBOSBreak(bars, lastSwingLow.price, 'bearish', lastSwingLow.index);
+            
+            if (breakInfo && breakInfo.breakIndex <= barIndex) {
                 return {
                     type: 'Bearish',
-                    date: currentBar.date,
-                    breakPrice: currentBar.close,
+                    date: breakInfo.breakDate,
+                    breakPrice: breakInfo.breakPrice,
                     structurePrice: lastSwingLow.price,
                     structureDate: lastSwingLow.date,
                     close: currentBar.close,
-                    change: currentBar.close - prevBar.close,
-                    changePercent: ((currentBar.close - prevBar.close) / prevBar.close) * 100
+                    change: breakInfo.change,
+                    changePercent: breakInfo.changePercent
                 };
             }
         }
@@ -182,12 +343,12 @@ function detectBOSAtIndex(bars, barIndex, swingHighs, swingLows) {
 }
 
 // Detect BOS (Break of Structure) - detects latest bar's close
-function detectBOS(bars) {
-    if (bars.length < 20) {
+function detectBOS(bars, lookback = 5) {
+    if (bars.length < 10) {
         return { hasBOS: false };
     }
     
-    const { swingHighs, swingLows } = findSwingPoints(bars);
+    const { swingHighs, swingLows } = findSwingPoints(bars, lookback);
     
     if (swingHighs.length < 2 || swingLows.length < 2) {
         return { hasBOS: false };
@@ -203,13 +364,12 @@ function detectBOS(bars) {
     return { hasBOS: false };
 }
 
-// Detect CHOCH at a specific bar index
+// Detect CHOCH at a specific bar index (checks if CHOCH exists and finds break details)
 function detectCHOCHAtIndex(bars, barIndex, swingHighs, swingLows) {
     if (barIndex < 1 || barIndex >= bars.length) {
         return null;
     }
     
-    const prevBar = bars[barIndex - 1];
     const currentBar = bars[barIndex];
     
     // Determine trend by comparing recent swing highs and lows
@@ -228,19 +388,25 @@ function detectCHOCHAtIndex(bars, barIndex, swingHighs, swingLows) {
     
     if (isDowntrend) {
         const lastSwingHigh = recentSwingHighs[recentSwingHighs.length - 1];
-        // Require: high crossed above structure AND close is above structure
-        if (currentBar.high > lastSwingHigh.price && currentBar.close > lastSwingHigh.price) {
-            return {
-                type: 'Bullish',
-                date: currentBar.date,
-                breakPrice: currentBar.close,
-                structurePrice: lastSwingHigh.price,
-                structureDate: lastSwingHigh.date,
-                close: currentBar.close,
-                change: currentBar.close - prevBar.close,
-                changePercent: ((currentBar.close - prevBar.close) / prevBar.close) * 100,
-                previousTrend: 'Downtrend'
-            };
+        
+        // Check if current bar is above structure
+        if (currentBar.close > lastSwingHigh.price) {
+            // Find the actual break date
+            const breakInfo = findBOSBreak(bars, lastSwingHigh.price, 'bullish', lastSwingHigh.index);
+            
+            if (breakInfo && breakInfo.breakIndex <= barIndex) {
+                return {
+                    type: 'Bullish',
+                    date: breakInfo.breakDate,
+                    breakPrice: breakInfo.breakPrice,
+                    structurePrice: lastSwingHigh.price,
+                    structureDate: lastSwingHigh.date,
+                    close: currentBar.close,
+                    change: breakInfo.change,
+                    changePercent: breakInfo.changePercent,
+                    previousTrend: 'Downtrend'
+                };
+            }
         }
     }
     
@@ -252,19 +418,25 @@ function detectCHOCHAtIndex(bars, barIndex, swingHighs, swingLows) {
     
     if (isUptrend) {
         const lastSwingLow = recentSwingLows[recentSwingLows.length - 1];
-        // Require: low crossed below structure AND close is below structure
-        if (currentBar.low < lastSwingLow.price && currentBar.close < lastSwingLow.price) {
-            return {
-                type: 'Bearish',
-                date: currentBar.date,
-                breakPrice: currentBar.close,
-                structurePrice: lastSwingLow.price,
-                structureDate: lastSwingLow.date,
-                close: currentBar.close,
-                change: currentBar.close - prevBar.close,
-                changePercent: ((currentBar.close - prevBar.close) / prevBar.close) * 100,
-                previousTrend: 'Uptrend'
-            };
+        
+        // Check if current bar is below structure
+        if (currentBar.close < lastSwingLow.price) {
+            // Find the actual break date
+            const breakInfo = findBOSBreak(bars, lastSwingLow.price, 'bearish', lastSwingLow.index);
+            
+            if (breakInfo && breakInfo.breakIndex <= barIndex) {
+                return {
+                    type: 'Bearish',
+                    date: breakInfo.breakDate,
+                    breakPrice: breakInfo.breakPrice,
+                    structurePrice: lastSwingLow.price,
+                    structureDate: lastSwingLow.date,
+                    close: currentBar.close,
+                    change: breakInfo.change,
+                    changePercent: breakInfo.changePercent,
+                    previousTrend: 'Uptrend'
+                };
+            }
         }
     }
     
@@ -272,12 +444,12 @@ function detectCHOCHAtIndex(bars, barIndex, swingHighs, swingLows) {
 }
 
 // Detect CHOCH (Change of Character) - detects latest bar's close
-function detectCHOCH(bars) {
-    if (bars.length < 20) {
+function detectCHOCH(bars, lookback = 5) {
+    if (bars.length < 10) {
         return { hasCHOCH: false };
     }
     
-    const { swingHighs, swingLows } = findSwingPoints(bars);
+    const { swingHighs, swingLows } = findSwingPoints(bars, lookback);
     
     if (swingHighs.length < 3 || swingLows.length < 3) {
         return { hasCHOCH: false };
@@ -316,20 +488,34 @@ app.get('/api/stocks', async (req, res) => {
             console.log(`Processing ${processed}/${INDIAN_STOCKS.length}: ${symbol}`);
             
             const data = await fetchHistoricalData(symbol, days, timeframe);
-            if (!data || data.bars.length < 20) {
+            if (!data || data.bars.length < 10) {
+                if (!data) {
+                    console.log(`  ⚠ No data for ${symbol}`);
+                } else {
+                    console.log(`  ⚠ Insufficient bars for ${symbol}: ${data.bars.length} bars`);
+                }
                 continue;
             }
             
-            const { swingHighs, swingLows } = findSwingPoints(data.bars);
+            // Adjust lookback based on timeframe
+            const lookbackMap = {
+                '1d': 5,   // Daily: 5 bars
+                '1wk': 3,  // Weekly: 3 bars (more sensitive)
+                '1mo': 2   // Monthly: 2 bars (most sensitive)
+            };
+            const lookback = lookbackMap[timeframe] || 5;
+            
+            const { swingHighs, swingLows } = findSwingPoints(data.bars, lookback);
             
             if ((pattern === 'bos' && (swingHighs.length < 2 || swingLows.length < 2)) ||
                 (pattern === 'choch' && (swingHighs.length < 3 || swingLows.length < 3))) {
+                console.log(`  ⚠ Insufficient swings for ${symbol}: ${swingHighs.length} highs, ${swingLows.length} lows (${data.bars.length} bars, lookback=${lookback})`);
                 continue;
             }
             
             // Check only the latest bar
             if (pattern === 'choch') {
-                const chochResult = detectCHOCH(data.bars);
+                const chochResult = detectCHOCH(data.bars, lookback);
                 if (chochResult.hasCHOCH) {
                     detectedStocks.push({
                         symbol: data.symbol,
@@ -340,7 +526,7 @@ app.get('/api/stocks', async (req, res) => {
                     console.log(`✓ Found CHOCH: ${symbol} - ${chochResult.type} (was ${chochResult.previousTrend})`);
                 }
             } else {
-                const bosResult = detectBOS(data.bars);
+                const bosResult = detectBOS(data.bars, lookback);
                 if (bosResult.hasBOS) {
                     detectedStocks.push({
                         symbol: data.symbol,
@@ -388,11 +574,11 @@ app.get('/api/bos-stocks', async (req, res) => {
             console.log(`Processing ${processed}/${INDIAN_STOCKS.length}: ${symbol}`);
             
             const data = await fetchHistoricalData(symbol);
-            if (!data || data.bars.length < 20) {
+            if (!data || data.bars.length < 10) {
                 continue;
             }
             
-            const bosResult = detectBOS(data.bars);
+            const bosResult = detectBOS(data.bars, 5);
             if (bosResult.hasBOS) {
                 detectedStocks.push({
                     symbol: data.symbol,
@@ -453,7 +639,8 @@ app.get('/api/stock/:symbol', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Stock BOS Detector server running on http://localhost:${PORT}`);
+    console.log(`Network access: http://192.168.1.13:${PORT}`);
     console.log(`Monitoring ${INDIAN_STOCKS.length} Indian stocks`);
 });

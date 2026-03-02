@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Indian Stocks - BOS Detector</title>
+    <title>Indian Stocks Pattern Detector - Nifty 100</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <h1>📈 Indian Stocks Pattern Detector</h1>
-            <p class="subtitle">Detect BOS and CHOCH patterns on the latest candle across multiple timeframes (Daily/Weekly/Monthly)</p>
+            <p class="subtitle">Detect BOS and CHOCH patterns across all 100 Nifty 100 stocks with multiple timeframes (Daily/Weekly/Monthly)</p>
         </header>
 
         <div class="info-box">
@@ -30,19 +31,19 @@
             
             <div id="bosInfo" class="pattern-info">
                 <h3>What is BOS (Break of Structure)?</h3>
-                <p><strong>Bullish BOS:</strong> When the candle <u>crosses above</u> AND <u>closes above</u> a previous swing high, confirming strong upward momentum and trend continuation.</p>
-                <p><strong>Bearish BOS:</strong> When the candle <u>crosses below</u> AND <u>closes below</u> a previous swing low, confirming strong downward momentum and trend continuation.</p>
-                <p><em>BOS indicates the trend is continuing in the same direction.</em></p>
+                <p><strong>Bullish BOS:</strong> Previous candle closed at or below structure level, then current candle <u>crosses above</u> AND <u>closes above</u> the structure, confirming upward momentum and trend continuation.</p>
+                <p><strong>Bearish BOS:</strong> Previous candle closed at or above structure level, then current candle <u>crosses below</u> AND <u>closes below</u> the structure, confirming downward momentum and trend continuation.</p>
+                <p><em>BOS break date is when the close first moves to the other side of the structure level.</em></p>
             </div>
 
             <div id="chochInfo" class="pattern-info hidden">
                 <h3>What is CHOCH (Change of Character)?</h3>
-                <p><strong>Bullish CHOCH:</strong> In a downtrend, when the candle <u>crosses above</u> AND <u>closes above</u> a previous swing high, signaling potential trend reversal to uptrend.</p>
-                <p><strong>Bearish CHOCH:</strong> In an uptrend, when the candle <u>crosses below</u> AND <u>closes below</u> a previous swing low, signaling potential trend reversal to downtrend.</p>
-                <p><em>CHOCH indicates the market character is changing and potential trend reversal.</em></p>
+                <p><strong>Bullish CHOCH:</strong> In a downtrend, previous candle closed at or below structure, then current candle <u>crosses above</u> AND <u>closes above</u> a swing high, signaling potential trend reversal to uptrend.</p>
+                <p><strong>Bearish CHOCH:</strong> In an uptrend, previous candle closed at or above structure, then current candle <u>crosses below</u> AND <u>closes below</u> a swing low, signaling potential trend reversal to downtrend.</p>
+                <p><em>CHOCH break date is when the close first moves to the other side of structure, indicating character change.</em></p>
             </div>
 
-            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;"><em>Note: Patterns require price to CROSS the level AND CLOSE beyond it for stronger confirmation. Works on all timeframes (Daily, Weekly, Monthly).</em></p>
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;"><em>Note: Patterns require price to CROSS the level AND CLOSE beyond it for stronger confirmation. Weekly dates show Monday (week start), matching NSE/BSE trading schedule.</em></p>
         </div>
 
         <div class="controls">
@@ -72,6 +73,9 @@
                     <span class="separator">•</span>
                     <span id="scanTime"></span>
                 </div>
+                <button id="exportBtn" class="export-btn">
+                    📥 Export to Excel
+                </button>
             </div>
 
             <div class="filter-tabs">

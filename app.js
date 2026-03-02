@@ -27,6 +27,9 @@ class BOSDetector {
                 this.updateScanButtonText();
             });
         });
+
+        // Export button
+        document.getElementById('exportBtn').addEventListener('click', () => this.exportToExcel());
     }
 
     togglePatternInfo(pattern) {
@@ -67,7 +70,9 @@ class BOSDetector {
         this.hideAllStates();
         
         try {
-            const url = `http://localhost:3000/api/stocks?pattern=${this.currentPattern}&timeframe=${timeframe}`;
+            // Use current hostname and port for network compatibility
+            const baseUrl = `${window.location.protocol}//${window.location.host}`;
+            const url = `${baseUrl}/api/stocks?pattern=${this.currentPattern}&timeframe=${timeframe}`;
             const response = await fetch(url);
             const data = await response.json();
             
@@ -167,22 +172,22 @@ class BOSDetector {
                     </div>
                     ` : ''}
                     <div class="detail-row">
-                        <span class="detail-label">Current Price (Today)</span>
-                        <span class="detail-value">₹${stock.close.toFixed(2)}</span>
+                        <span class="detail-label">${patternName} Break Date</span>
+                        <span class="detail-value" style="font-weight: 700;">${this.formatDate(stock.date)}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Change Today</span>
+                        <span class="detail-label">Break Price (Close on Break Date)</span>
+                        <span class="detail-value" style="font-weight: 700;">₹${stock.breakPrice.toFixed(2)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Change on Break Day</span>
                         <span class="detail-value price-change ${changeClass}">
                             ${changeSymbol}₹${stock.change.toFixed(2)} (${changeSymbol}${stock.changePercent.toFixed(2)}%)
                         </span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">${patternName} Date</span>
-                        <span class="detail-value">${this.formatDate(stock.date)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Break Price (Close)</span>
-                        <span class="detail-value">₹${stock.breakPrice.toFixed(2)}</span>
+                        <span class="detail-label">Current Price (Latest)</span>
+                        <span class="detail-value">₹${stock.close.toFixed(2)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">${patternName} Level (Structure)</span>
@@ -220,6 +225,87 @@ class BOSDetector {
         setTimeout(() => {
             notification.classList.add('hidden');
         }, 5000);
+    }
+
+    exportToExcel() {
+        if (this.stocks.length === 0) {
+            this.showNotification('No data to export. Please scan for stocks first.', 'error');
+            return;
+        }
+
+        // Get filtered stocks based on current filter
+        let filteredStocks = this.stocks;
+        if (this.currentFilter === 'bullish') {
+            filteredStocks = this.stocks.filter(s => s.type === 'Bullish');
+        } else if (this.currentFilter === 'bearish') {
+            filteredStocks = this.stocks.filter(s => s.type === 'Bearish');
+        }
+
+        if (filteredStocks.length === 0) {
+            this.showNotification('No stocks match the current filter.', 'error');
+            return;
+        }
+
+        // Prepare data for Excel
+        const excelData = filteredStocks.map(stock => {
+            const row = {
+                'Symbol': stock.symbol,
+                'Company Name': stock.name,
+                'Pattern': stock.pattern || 'BOS',
+                'Type': stock.type,
+                'Break Date': stock.date,
+                'Break Price (₹)': parseFloat(stock.breakPrice.toFixed(2)),
+                'Current Price (₹)': parseFloat(stock.close.toFixed(2)),
+                'Change on Break Day (₹)': parseFloat(stock.change.toFixed(2)),
+                'Change %': parseFloat(stock.changePercent.toFixed(2)),
+                'Structure Price (₹)': parseFloat(stock.structurePrice.toFixed(2)),
+                'Structure Date': stock.structureDate
+            };
+
+            // Add Previous Trend for CHOCH
+            if (stock.previousTrend) {
+                row['Previous Trend'] = stock.previousTrend;
+            }
+
+            return row;
+        });
+
+        // Create workbook and worksheet
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+
+        // Set column widths
+        const colWidths = [
+            { wch: 18 },  // Symbol
+            { wch: 35 },  // Company Name
+            { wch: 10 },  // Pattern
+            { wch: 10 },  // Type
+            { wch: 12 },  // Break Date
+            { wch: 15 },  // Break Price
+            { wch: 15 },  // Current Price
+            { wch: 18 },  // Change on Break Day
+            { wch: 10 },  // Change %
+            { wch: 18 },  // Structure Price
+            { wch: 14 },  // Structure Date
+            { wch: 15 }   // Previous Trend
+        ];
+        ws['!cols'] = colWidths;
+
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Pattern Analysis');
+
+        // Generate filename with timestamp
+        const timeframe = document.getElementById('timeframe').value;
+        const timeframeName = { '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[timeframe] || 'Daily';
+        const patternName = filteredStocks[0]?.pattern || 'BOS';
+        const filterName = this.currentFilter === 'all' ? 'All' : this.currentFilter.charAt(0).toUpperCase() + this.currentFilter.slice(1);
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `${patternName}_${timeframeName}_${filterName}_${timestamp}.xlsx`;
+
+        // Download the file
+        XLSX.writeFile(wb, filename);
+
+        this.showNotification(`Exported ${filteredStocks.length} stocks to ${filename}`, 'success');
     }
 }
 
