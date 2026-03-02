@@ -11,7 +11,7 @@
     <div class="container">
         <header class="header">
             <h1>📈 Indian Stocks Pattern Detector</h1>
-            <p class="subtitle">Detect BOS and CHOCH patterns across all 100 Nifty 100 stocks with multiple timeframes (Daily/Weekly/Monthly)</p>
+            <p class="subtitle">Detect BOS and CHOCH patterns across all 100 Nifty 100 stocks with multiple timeframes (15min/1hour/Daily/Weekly/Monthly)</p>
         </header>
 
         <div class="info-box">
@@ -43,13 +43,15 @@
                 <p><em>CHOCH break date is when the close first moves to the other side of structure, indicating character change.</em></p>
             </div>
 
-            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;"><em>Note: Patterns require price to CROSS the level AND CLOSE beyond it for stronger confirmation. Weekly dates show Monday (week start), matching NSE/BSE trading schedule.</em></p>
+            <p style="margin-top: 15px; font-size: 0.9rem; color: #666;"><em>Note: Patterns require price to CROSS the level AND CLOSE beyond it for stronger confirmation. Weekly dates show Monday (week start), matching NSE/BSE trading schedule. Intraday timeframes (15m/1h) have limited historical data (~60-90 days) due to API constraints.</em></p>
         </div>
 
         <div class="controls">
             <div class="timeframe-selector">
                 <label for="timeframe" style="font-weight: 600; margin-right: 10px;">Timeframe:</label>
                 <select id="timeframe" class="timeframe-select">
+                    <option value="15m">15 Minutes (15M)</option>
+                    <option value="1h">1 Hour (1H)</option>
                     <option value="1d" selected>Daily (1D)</option>
                     <option value="1wk">Weekly (1W)</option>
                     <option value="1mo">Monthly (1M)</option>

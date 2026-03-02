@@ -86,6 +86,12 @@ const INDIAN_STOCKS = [
 function convertToTradingDay(dateStr, interval) {
     const date = new Date(dateStr + 'T00:00:00Z');
     
+    // For intraday intervals (15m, 1h), keep the original timestamp as-is
+    // Yahoo Finance provides accurate intraday timestamps during market hours
+    if (interval === '15m' || interval === '1h') {
+        return date.toISOString().split('T')[0];
+    }
+    
     // For weekly candles, NSE/BSE week starts on Monday
     // Yahoo typically gives week-ending date (often Monday or Sunday)
     // We want to show Monday (week start date)
@@ -472,14 +478,17 @@ app.get('/api/stocks', async (req, res) => {
         const timeframe = req.query.timeframe || '1d'; // 1d, 1wk, 1mo
         
         // Map timeframe to days for historical data fetch
+        // Note: Intraday data (15m, 1h) is limited to ~60-90 days by Yahoo Finance API
         const timeframeDays = {
-            '1d': 60,
-            '1wk': 180,
-            '1mo': 365
+            '15m': 60,   // 15-minute data: limited to ~60 days max
+            '1h': 90,    // 1-hour data: limited to ~90 days max
+            '1d': 60,    // Daily data: 60 days for consistent analysis
+            '1wk': 180,  // Weekly data: 6 months
+            '1mo': 365   // Monthly data: 1 year
         };
         const days = timeframeDays[timeframe] || 60;
         
-        console.log(`Fetching ${pattern.toUpperCase()} stocks (${timeframe} timeframe)...`);
+        console.log(`Fetching ${pattern.toUpperCase()} stocks (${timeframe} timeframe - ${timeframeDays[timeframe]} days of data)...`);
         const detectedStocks = [];
         
         let processed = 0;
@@ -499,9 +508,11 @@ app.get('/api/stocks', async (req, res) => {
             
             // Adjust lookback based on timeframe
             const lookbackMap = {
-                '1d': 5,   // Daily: 5 bars
-                '1wk': 3,  // Weekly: 3 bars (more sensitive)
-                '1mo': 2   // Monthly: 2 bars (most sensitive)
+                '15m': 20,  // 15-minute: 20 bars (more data needed for intraday noise filtering)
+                '1h': 15,   // 1-hour: 15 bars (moderate filtering for hourly swings)
+                '1d': 5,    // Daily: 5 bars (standard swing detection)
+                '1wk': 3,   // Weekly: 3 bars (more sensitive)
+                '1mo': 2    // Monthly: 2 bars (most sensitive)
             };
             const lookback = lookbackMap[timeframe] || 5;
             

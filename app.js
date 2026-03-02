@@ -59,7 +59,7 @@ class BOSDetector {
         
         const timeframe = document.getElementById('timeframe').value;
         const patternName = this.currentPattern === 'bos' ? 'BOS' : 'CHOCH';
-        const timeframeName = { '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[timeframe] || 'Daily';
+        const timeframeName = { '15m': '15-Minute', '1h': 'Hourly', '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[timeframe] || 'Daily';
         
         scanBtn.disabled = true;
         scanBtnText.textContent = 'Scanning...';
@@ -113,7 +113,7 @@ class BOSDetector {
     displayResults(data) {
         document.getElementById('results').classList.remove('hidden');
         
-        const timeframeName = { '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[data.timeframe] || 'Daily';
+        const timeframeName = { '15m': '15-Minute', '1h': 'Hourly', '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[data.timeframe] || 'Daily';
         
         document.getElementById('bosCount').textContent = `${data.count} stock${data.count !== 1 ? 's' : ''} (${data.pattern} - ${timeframeName})`;
         document.getElementById('scanTime').textContent = `Scanned ${data.scannedCount} stocks`;
@@ -296,7 +296,7 @@ class BOSDetector {
 
         // Generate filename with timestamp
         const timeframe = document.getElementById('timeframe').value;
-        const timeframeName = { '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[timeframe] || 'Daily';
+        const timeframeName = { '15m': '15-Minute', '1h': 'Hourly', '1d': 'Daily', '1wk': 'Weekly', '1mo': 'Monthly' }[timeframe] || 'Daily';
         const patternName = filteredStocks[0]?.pattern || 'BOS';
         const filterName = this.currentFilter === 'all' ? 'All' : this.currentFilter.charAt(0).toUpperCase() + this.currentFilter.slice(1);
         const timestamp = new Date().toISOString().split('T')[0];
